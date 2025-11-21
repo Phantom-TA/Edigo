@@ -23,14 +23,18 @@ const Header = () => {
         </Link>
       </div>
       <a
-        href="https://github.com/raghavv483/AIcademy/"
-        target="_blank"
-        rel="noopener noreferrer"
-        className=" flex items-center border border-purple-500 text-purple-600 rounded-lg px-4 py-2 bg-transparent hover:bg-purple-200 transition-colors duration-200 ml-4   font-medium"
-        style={{ textDecoration: 'none' }}
-      >
-        <GitHubLogo />
-        Star on GitHub
+  href="/"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="flex items-center text-purple-600 rounded-lg px-4 py-2 bg-transparent hover:bg-purple-200 transition-colors duration-200 ml-4 font-medium"
+  style={{
+    textDecoration: "none",
+    backgroundColor: "transparent",
+    border: "none",
+  }}
+>
+        
+       
       </a>
       <div>
         <UserButton />
