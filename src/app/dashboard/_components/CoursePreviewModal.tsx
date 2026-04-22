@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
+import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 
 interface CoursePreviewModalProps {
   isOpen: boolean;
@@ -17,6 +20,7 @@ interface CoursePreviewModalProps {
       Chapters?: Array<{ ChapterTitle: string }>;
     };
     username?: string;
+    createdBy?: string;
   };
   onEnrollSuccess?: () => void;
 }
@@ -27,11 +31,34 @@ export default function CoursePreviewModal({
   course,
   onEnrollSuccess,
 }: CoursePreviewModalProps) {
+  const { user, isLoaded } = useUser();
+  const router = useRouter();
   const [enrolling, setEnrolling] = useState(false);
+  const [userRole, setUserRole] = useState<'TEACHER' | 'STUDENT' | null>(null);
+
+  const fetchUserRole = useCallback(async () => {
+    try {
+      const response = await fetch('/api/user/role');
+      if (response.ok) {
+        const data = await response.json();
+        setUserRole(data.role);
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchUserRole();
+    }
+  }, [isOpen, user, fetchUserRole]);
 
   if (!isOpen) return null;
 
   const handleEnroll = async () => {
+    if (userRole === 'TEACHER') return;
+    
     setEnrolling(true);
     try {
       const response = await fetch('/api/courses/enroll', {
@@ -60,16 +87,43 @@ export default function CoursePreviewModal({
   const chapters = course.courseOutput?.Chapters || [];
   const weekCount = Math.ceil(chapters.length / 3); // Rough estimate
 
+  // Logic for action button
+  let buttonText = 'Confirm Enrollment';
+  let buttonDisabled = enrolling || !isLoaded;
+  let buttonAction: (() => void) | (() => Promise<void>) = handleEnroll;
+  let buttonClass = 'bg-indigo-600 text-white hover:bg-indigo-700';
+
+  if (!isLoaded || !user) {
+    buttonText = 'Sign in to Enroll';
+    buttonDisabled = true;
+  } else if (userRole === 'TEACHER') {
+    if (course.createdBy === user.id || course.createdBy === user.primaryEmailAddress?.emailAddress) {
+      buttonText = 'View My Course';
+      buttonAction = () => {
+        onClose();
+        router.push(`/course/${course.courseId}/roadmap`);
+      };
+      buttonClass = 'bg-violet-600 text-white hover:bg-violet-700';
+    } else {
+      buttonText = 'Teacher Account';
+      buttonDisabled = true;
+      buttonClass = 'bg-gray-100 text-gray-500 cursor-not-allowed border border-gray-200';
+    }
+  } else if (enrolling) {
+    buttonText = 'Enrolling...';
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header with Image */}
         {course.courseBanner && (
-          <div className="h-48 overflow-hidden rounded-t-xl">
-            <img
+          <div className="relative h-48 w-full overflow-hidden rounded-t-xl">
+            <Image
               src={course.courseBanner}
               alt={course.name}
-              className="w-full h-full object-cover"
+              fill
+              className="object-cover"
             />
           </div>
         )}
@@ -142,19 +196,14 @@ export default function CoursePreviewModal({
           {/* Actions */}
           <div className="flex gap-3 mt-6">
             <button
-              onClick={handleEnroll}
-              disabled={enrolling}
-              className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${
-                enrolling
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
-              }`}
+              onClick={() => buttonAction()}
+              disabled={buttonDisabled}
+              className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-colors ${buttonClass}`}
             >
-              {enrolling ? 'Enrolling...' : 'Confirm Enrollment'}
+              {buttonText}
             </button>
             <button
               onClick={onClose}
-              disabled={enrolling}
               className="px-6 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
             >
               Cancel

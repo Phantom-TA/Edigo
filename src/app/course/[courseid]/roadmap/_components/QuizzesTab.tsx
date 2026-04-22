@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 
 interface QuizResult {
@@ -28,13 +28,7 @@ export default function QuizzesTab({ courseId }: QuizzesTabProps) {
     totalTopicsCovered: 0
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchQuizResults();
-    }
-  }, [user, courseId]);
-
-  const fetchQuizResults = async () => {
+  const fetchQuizResults = useCallback(async () => {
     try {
       const response = await fetch(`/api/quiz-results?courseId=${courseId}`);
       if (response.ok) {
@@ -47,7 +41,13 @@ export default function QuizzesTab({ courseId }: QuizzesTabProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
+
+  useEffect(() => {
+    if (user) {
+      fetchQuizResults();
+    }
+  }, [user, fetchQuizResults]);
 
   const calculateStats = (results: QuizResult[]) => {
     if (results.length === 0) {

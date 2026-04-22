@@ -1,5 +1,6 @@
 "use client"
 import { ReactNode, useState } from 'react';
+export const dynamic = 'force-dynamic';
 import { useUser } from '@clerk/nextjs';
 import Sidebar from './_components/Sidebar';
 import Header from './_components/Header';

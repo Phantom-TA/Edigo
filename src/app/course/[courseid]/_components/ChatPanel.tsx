@@ -67,7 +67,6 @@ const ChatPanel = ({ courseId }: ChatPanelProps) => {
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
 
       socket = io(socketUrl, {
-        path: '/socket.io',
         transports: ['websocket', 'polling'],
       });
 

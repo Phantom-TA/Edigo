@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+export const dynamic = 'force-dynamic';
 import { enrollStudent, isStudentEnrolled } from '@/lib/courses/enrollStudent';
+import { db, supabase } from '@/app/_configs/db';
+import { Users } from '@/app/_configs/Schema';
+import { eq } from 'drizzle-orm';
 
 // POST - Enroll in a course
 export async function POST(req: NextRequest) {
@@ -16,6 +20,33 @@ export async function POST(req: NextRequest) {
 
     if (!courseId) {
       return NextResponse.json({ error: 'Course ID required' }, { status: 400 });
+    }
+
+    // Role Check - Only students can enroll
+    try {
+      const user = await db
+        .select({ role: Users.role })
+        .from(Users)
+        .where(eq(Users.clerkId, userId))
+        .limit(1);
+      
+      const role = user.length > 0 ? user[0].role : null;
+      
+      if (role === 'TEACHER') {
+        return NextResponse.json(
+          { error: 'Teachers cannot enroll in courses. Use your student account or create courses instead.' },
+          { status: 403 }
+        );
+      }
+    } catch (err) {
+      console.error('Role check fallback in enroll:', err);
+      const { data } = await supabase.from('users').select('role').eq('clerkId', userId).maybeSingle();
+      if (data && data.role === 'TEACHER') {
+          return NextResponse.json(
+              { error: 'Teachers cannot enroll in courses.' },
+              { status: 403 }
+          );
+      }
     }
 
     // Check if already enrolled

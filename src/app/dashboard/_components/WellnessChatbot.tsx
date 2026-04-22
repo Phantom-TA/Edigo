@@ -142,11 +142,11 @@ const WellnessChatbot = () => {
         {/* Supportive Info Card */}
         <Card className="p-4 bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
           <p className="text-sm text-gray-700">
-            💜 <strong>You're not alone.</strong> This is a safe, judgment-free space where you can express yourself. 
-            I'm here to listen and support you.
+            💜 <strong>You&apos;re not alone.</strong> This is a safe, judgment-free space where you can express yourself. 
+            I&apos;m here to listen and support you.
           </p>
           <p className="text-xs text-gray-500 mt-2">
-            ⚠️ If you're experiencing a crisis, please reach out to a trusted adult, parent, teacher, or counselor.
+            ⚠️ If you&apos;re experiencing a crisis, please reach out to a trusted adult, parent, teacher, or counselor.
           </p>
         </Card>
       </div>
@@ -229,7 +229,7 @@ const WellnessChatbot = () => {
       {/* Footer Resources */}
       <div className="mt-4 text-center">
         <p className="text-xs text-gray-500">
-          🌟 Remember: It's okay to not be okay. Taking care of your mental health is important.
+          🌟 Remember: It&apos;s okay to not be okay. Taking care of your mental health is important.
         </p>
       </div>
     </div>

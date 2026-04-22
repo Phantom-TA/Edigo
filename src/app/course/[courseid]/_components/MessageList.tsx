@@ -1,4 +1,5 @@
 "use client"
+import Image from 'next/image';
 import React from 'react'
 import { useUser } from '@clerk/nextjs'
 
@@ -52,9 +53,11 @@ const MessageList = ({ messages, currentUserId }: MessageListProps) => {
                 {!isOwnMessage && (
                   <div className="flex items-center gap-2 mb-1">
                     {message.senderImage ? (
-                      <img
+                      <Image
                         src={message.senderImage}
                         alt={message.senderName || 'User'}
+                        width={24}
+                        height={24}
                         className="w-6 h-6 rounded-full"
                       />
                     ) : (

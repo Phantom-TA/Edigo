@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+export const dynamic = 'force-dynamic';
 import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface EnrolledCourse {
   id: number;
@@ -35,14 +37,7 @@ export default function MyCoursesPage() {
   const [learningPlans, setLearningPlans] = useState<LearningPlan[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchEnrolledCourses();
-      fetchLearningPlans();
-    }
-  }, [user]);
-
-  const fetchEnrolledCourses = async () => {
+  const fetchEnrolledCourses = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -75,9 +70,9 @@ export default function MyCoursesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchLearningPlans = async () => {
+  const fetchLearningPlans = useCallback(async () => {
     try {
       const response = await fetch('/api/learning-plans');
       if (response.ok) {
@@ -87,7 +82,14 @@ export default function MyCoursesPage() {
     } catch (error) {
       console.error('Error fetching learning plans:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchEnrolledCourses();
+      fetchLearningPlans();
+    }
+  }, [user, fetchEnrolledCourses, fetchLearningPlans]);
 
   const getProgressPercentage = (courseId: string) => {
     const enrollment = enrolledCourses.find((e) => e.courseId === courseId);
@@ -225,9 +227,11 @@ export default function MyCoursesPage() {
                   {/* Course Banner */}
                   <div className="h-40 bg-gradient-to-br from-indigo-500 to-purple-600 overflow-hidden">
                     {course.courseBanner ? (
-                      <img
+                      <Image
                         src={course.courseBanner}
                         alt={course.name}
+                        width={400}
+                        height={160}
                         className="w-full h-full object-cover"
                       />
                     ) : (

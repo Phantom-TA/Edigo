@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 
 interface StudentProgressProps {
@@ -20,11 +20,7 @@ export default function StudentProgress({ courseId }: StudentProgressProps) {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchScores();
-  }, [courseId]);
-
-  const fetchScores = async () => {
+  const fetchScores = useCallback(async () => {
     try {
       const response = await fetch(`/api/student/scores?courseId=${courseId}`);
       if (response.ok) {
@@ -36,7 +32,11 @@ export default function StudentProgress({ courseId }: StudentProgressProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
+
+  useEffect(() => {
+    fetchScores();
+  }, [fetchScores]);
 
   const calculateOverallProgress = () => {
     const scores_array = [

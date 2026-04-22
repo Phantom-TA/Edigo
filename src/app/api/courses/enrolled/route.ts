@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+export const dynamic = 'force-dynamic';
 import { getEnrolledCourses } from '@/lib/courses/enrollStudent';
 
 export async function GET(req: NextRequest) {

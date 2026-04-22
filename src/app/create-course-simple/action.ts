@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "../_configs/db";
+import { db, supabase } from "../_configs/db";
 import { CourseList } from "../_configs/Schema";
 import { v4 as uuidv4 } from "uuid";
 import { getGroqChatCompletionServer } from "../_configs/AiModels";
@@ -56,19 +56,42 @@ export const GenerateAndSaveCourse = async ({
     const courseLayout = result.choices[0].message.content;
 
     // Save to database
-    await db.insert(CourseList).values({
-      courseId: courseId,
-      name: formData.title,
-      level: "Beginner", // Default level for simple course
-      courseOutput: courseLayout,
-      createdBy: user?.email || '',
-      username: user?.fullName || null,
-      userProfileImage: user?.imageUrl || null
-    });
+    try {
+      // 1. Attempt Drizzle Insert
+      await db.insert(CourseList).values({
+        courseId: courseId,
+        name: formData.title,
+        level: "Beginner", // Default level for simple course
+        courseOutput: courseLayout,
+        createdBy: user?.email || '',
+        username: user?.fullName || null,
+        userProfileImage: user?.imageUrl || null
+      });
+    } catch (drizzleError) {
+      console.error('Drizzle insert failed, falling back to Supabase:', drizzleError);
+      
+      // 2. Attempt Supabase HTTP Fallback
+      const { error: supabaseError } = await supabase
+        .from('courseList')
+        .insert({
+          courseId: courseId,
+          name: formData.title,
+          level: "Beginner",
+          courseOutput: courseLayout, // courseLayout is already a string
+          createdBy: user?.email || '',
+          username: user?.fullName || null,
+          userProfileImage: user?.imageUrl || null
+        });
+      
+      if (supabaseError) {
+        console.error('Supabase fallback also failed:', supabaseError);
+        throw supabaseError;
+      }
+    }
 
     return { success: true, courseId };
   } catch (error: unknown) {
-    console.error('Course generation error:', error);
-    return { success: false, error: 'Failed to generate course' };
+    console.error('Course generation or save error:', error);
+    return { success: false, error: 'Failed to generate or save course' };
   }
 };

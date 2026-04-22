@@ -1,6 +1,6 @@
 "use client";
 import { useUser } from "@clerk/nextjs";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import CourseCard from "./CourseCard";
 import { useUserCourseList } from "../../_context/UserCourseListContext";
 
@@ -35,14 +35,19 @@ const UserCourseList = () => {
   const { user } = useUser();
   const { userCourseList, setUserCourseList } = useUserCourseList();
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<'TEACHER' | 'STUDENT' | null>(null);
 
-  const fetchCourses = async () => {
-    if (user && user.fullName) {
+  const fetchCourses = useCallback(async () => {
+    if (user) {
       setLoading(true);
       try {
-        const res = await fetch(
-          `/api/get-user-courses?fullName=${encodeURIComponent(user.fullName)}`
-        );
+        // 1. Get role first
+        const roleRes = await fetch('/api/user/role');
+        const roleData = await roleRes.json();
+        setUserRole(roleData.role);
+
+        // 2. Fetch courses (API now uses auth() and is role-aware)
+        const res = await fetch('/api/get-user-courses');
         const data = await res.json();
 
         const normalizedCourses: Course[] = Array.isArray(data)
@@ -68,15 +73,17 @@ const UserCourseList = () => {
     } else {
       setLoading(false);
     }
-  };
+  }, [user, setUserCourseList]);
 
   useEffect(() => {
     fetchCourses();
-  }, [user, setUserCourseList]);
+  }, [fetchCourses]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6 text-violet-500">My Courses</h1>
+      <h1 className="text-2xl font-bold mb-6 text-violet-500">
+        {userRole === 'TEACHER' ? 'Courses Created BY Me' : 'My Enrolled Courses'}
+      </h1>
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 3 }).map((_, idx) => (

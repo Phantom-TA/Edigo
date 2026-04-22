@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
 
-const groq = new Groq({
-  apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY,
-});
+let groq: Groq | null = null;
+
+const getGroqClient = () => {
+  if (!groq) {
+    const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY || process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      throw new Error('GROQ_API_KEY environment variable is missing');
+    }
+    groq = new Groq({ apiKey });
+  }
+  return groq;
+};
 
 // In-memory storage for chat sessions
 const chatSessions = new Map<string, Array<{ role: string; content: string }>>();
@@ -67,7 +76,8 @@ Your goal is to make them feel better, supported, and remind them they're not al
       });
 
       // Call Groq API with conversation history
-      const chatCompletion = await groq.chat.completions.create({
+      const groqClient = getGroqClient();
+      const chatCompletion = await groqClient.chat.completions.create({
         messages: messages as any,
         model: 'llama-3.3-70b-versatile',
         temperature: 0.8, // Slightly higher for more empathetic, varied responses

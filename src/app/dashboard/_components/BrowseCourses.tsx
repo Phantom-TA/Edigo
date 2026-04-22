@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import CoursePreviewModal from './CoursePreviewModal';
 
 interface Course {
@@ -28,14 +29,7 @@ export default function BrowseCourses() {
   const [showModal, setShowModal] = useState(false);
   const [userRole, setUserRole] = useState<'TEACHER' | 'STUDENT' | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchUserRole();
-    }
-    fetchPublishedCourses();
-  }, [user]);
-
-  const fetchUserRole = async () => {
+  const fetchUserRole = useCallback(async () => {
     try {
       const response = await fetch('/api/user/role');
       if (response.ok) {
@@ -45,9 +39,9 @@ export default function BrowseCourses() {
     } catch (error) {
       console.error('Error fetching user role:', error);
     }
-  };
+  }, []);
 
-  const fetchPublishedCourses = async () => {
+  const fetchPublishedCourses = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/get-all-courses?published=true');
@@ -80,7 +74,14 @@ export default function BrowseCourses() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRole();
+    }
+    fetchPublishedCourses();
+  }, [user, fetchUserRole, fetchPublishedCourses]);
 
   const handleEnrollClick = (course: Course) => {
     if (!user) return;
@@ -132,16 +133,22 @@ export default function BrowseCourses() {
             <div
               key={course.courseId}
               className={`bg-white rounded-lg shadow-md hover:shadow-lg transition-all overflow-hidden ${
-                course.isEnrolled ? 'cursor-pointer' : ''
+                (user && (course.isEnrolled || course.createdBy === user.id || course.createdBy === user.primaryEmailAddress?.emailAddress)) ? 'cursor-pointer' : ''
               }`}
-              onClick={() => course.isEnrolled && handleCourseClick(course)}
+              onClick={() => {
+                if (user && (course.isEnrolled || course.createdBy === user.id || course.createdBy === user.primaryEmailAddress?.emailAddress)) {
+                  router.push(`/course/${course.courseId}/roadmap`);
+                }
+              }}
             >
               {/* Course Banner */}
               <div className="h-40 bg-gradient-to-br from-indigo-500 to-purple-600 overflow-hidden">
                 {course.courseBanner ? (
-                  <img
+                  <Image
                     src={course.courseBanner}
                     alt={course.name}
+                    width={400}
+                    height={160}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -182,18 +189,36 @@ export default function BrowseCourses() {
                     Sign in to enroll
                   </div>
                 ) : userRole === 'TEACHER' ? (
-                  <div className="text-center text-sm text-gray-600 py-2 bg-gray-100 rounded-lg">
-                    Available to students
-                  </div>
+                  (course.createdBy === user.id || course.createdBy === user.primaryEmailAddress?.emailAddress) ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/course/${course.courseId}/roadmap`);
+                      }}
+                      className="w-full px-4 py-2 bg-violet-600 text-white rounded-lg font-semibold hover:bg-violet-700 transition-colors"
+                    >
+                      View My Course
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="w-full px-4 py-2 bg-gray-100 text-gray-500 rounded-lg font-semibold cursor-not-allowed border border-gray-200"
+                    >
+                      Teacher Account
+                    </button>
+                  )
                 ) : course.isEnrolled ? (
                   <button
-                    disabled
-                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg font-semibold cursor-not-allowed flex items-center justify-center gap-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/course/${course.courseId}/roadmap`);
+                    }}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
-                    Enrolled
+                    Continue Learning
                   </button>
                 ) : (
                   <button
@@ -207,11 +232,6 @@ export default function BrowseCourses() {
                   </button>
                 )}
 
-                {course.isEnrolled && (
-                  <p className="text-xs text-center text-gray-500 mt-2">
-                    Click card to view course
-                  </p>
-                )}
               </div>
             </div>
           ))}

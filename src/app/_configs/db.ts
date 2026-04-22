@@ -1,27 +1,26 @@
-// Database Configuration
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 
-// Load environment variables
-dotenv.config();
+// Connection string from environment
+const connectionString = process.env.DATABASE_URL || '';
 
-if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL environment variable is not set');
-}
-
-const connectionString = process.env.DATABASE_URL;
-
-// Create PostgreSQL client with optimized settings for Supabase
-const client = postgres(connectionString, {
-    ssl: 'require',
+// --- Direct Postgres Client (Drizzle) ---
+// Note: This may time out on restricted networks (e.g. some office/school WiFi)
+const client = postgres(connectionString || 'postgres://localhost:5432/dummy', {
+    ssl: connectionString ? 'require' : false,
     max: 1,
     idle_timeout: 30,
-    connect_timeout: 30,
+    connect_timeout: 2, // Reduced from 30s to 2s for faster fallback in restricted networks
     connection: {
         application_name: 'alcademy'
     }
 });
-
-// Export Drizzle instance
 export const db = drizzle(client);
+
+// --- HTTP Data API Client (Supabase) ---
+// Note: This is more reliable on restricted networks (Port 443)
+export const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+);

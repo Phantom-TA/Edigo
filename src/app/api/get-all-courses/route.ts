@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/app/_configs/db';
+import { db, supabase } from '@/app/_configs/db';
 import { CourseList } from '@/app/_configs/Schema';
 import { inArray } from 'drizzle-orm';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,35 +11,66 @@ export async function GET(req: NextRequest) {
     const publishedOnly = searchParams.get('published') === 'true';
     const idsParam = searchParams.get('ids');
 
-    // Filter by IDs if provided (for enrolled courses)
-    if (idsParam) {
-      const ids = idsParam.split(',');
-      const courses = await db
-        .select()
-        .from(CourseList)
-        .where(inArray(CourseList.courseId, ids));
+    let courses: any[] = [];
 
-      return NextResponse.json(courses);
+    // Attempt 1: Try Supabase HTTP Data API (Port 443 - very fast and rarely blocked)
+    try {
+      if (idsParam) {
+        const ids = idsParam.split(',');
+        const { data, error } = await supabase
+          .from('courseList')
+          .select('*')
+          .in('courseId', ids);
+        if (error) throw error;
+        courses = data || [];
+      } else if (publishedOnly) {
+        const { data, error } = await supabase
+          .from('courseList')
+          .select('*');
+        if (error) throw error;
+        courses = (data || []).filter(
+          (course: any) =>
+            course.publish === true ||
+            course.isPublished === true ||
+            course.publish === 'true' ||
+            course.isPublished === 'true'
+        );
+      } else {
+        const { data, error } = await supabase
+          .from('courseList')
+          .select('*');
+        if (error) throw error;
+        courses = data || [];
+      }
+    } catch (supabaseError: any) {
+      console.error('Supabase fetch failed, falling back to Drizzle:', supabaseError.message);
+      
+      // Attempt 2: Fallback to Drizzle (Direct Postgres)
+      if (idsParam) {
+        const ids = idsParam.split(',');
+        courses = await db
+          .select()
+          .from(CourseList)
+          .where(inArray(CourseList.courseId, ids));
+      } else if (publishedOnly) {
+        const allCourses = await db.select().from(CourseList);
+        courses = allCourses.filter(
+          (course: any) =>
+            course.publish === true ||
+            course.isPublished === true ||
+            course.publish === 'true' ||
+            course.isPublished === 'true'
+        );
+      } else {
+        courses = await db.select().from(CourseList);
+      }
     }
 
-    // Filter by published status
-    if (publishedOnly) {
-      // Get all courses and filter by publish status (support both old and new fields)
-      const allCourses = await db.select().from(CourseList);
-      const publishedCourses = allCourses.filter(
-        (course) => course.publish === true || course.isPublished === true
-      );
-
-      return NextResponse.json(publishedCourses);
-    }
-
-    // Return all courses
-    const courses = await db.select().from(CourseList);
     return NextResponse.json(courses);
-  } catch (error) {
-    console.error('Error fetching courses:', error);
+  } catch (error: any) {
+    console.error('Fatal course fetch error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch courses' },
+      { error: 'Failed to fetch courses', details: error.message },
       { status: 500 }
     );
   }

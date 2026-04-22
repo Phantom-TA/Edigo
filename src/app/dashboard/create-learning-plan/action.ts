@@ -1,6 +1,6 @@
 "use server";
 
-import { db } from "@/app/_configs/db";
+import { db, supabase } from "@/app/_configs/db";
 import { StudentLearningPlans, Users } from "@/app/_configs/Schema";
 import { v4 as uuidv4 } from "uuid";
 import { getGroqChatCompletionServer } from "@/app/_configs/AiModels";
@@ -19,33 +19,60 @@ export const GenerateLearningPlan = async ({
   user: any;
 }) => {
   try {
-    // Get user from database
-    const dbUser = await db
-      .select()
-      .from(Users)
-      .where(eq(Users.clerkId, user.id))
-      .limit(1);
+    let studentId = null;
 
-    if (!dbUser || dbUser.length === 0) {
-      // Create user if doesn't exist
-      const newUser = await db.insert(Users).values({
-        clerkId: user.id,
-        email: user.email,
-        fullName: user.fullName || '',
-        profileImage: user.imageUrl || '',
-        role: 'STUDENT',
-      }).returning();
+    // 1. Get or Create User
+    try {
+      // Drizzle check
+      const dbUser = await db
+        .select()
+        .from(Users)
+        .where(eq(Users.clerkId, user.id))
+        .limit(1);
 
-      if (!newUser || newUser.length === 0) {
-        return { success: false, error: 'Failed to create user' };
+      if (dbUser.length > 0) {
+        studentId = dbUser[0].id;
+      } else {
+        const newUser = await db.insert(Users).values({
+          clerkId: user.id,
+          email: user.email,
+          fullName: user.fullName || '',
+          profileImage: user.imageUrl || '',
+          role: 'STUDENT',
+        }).returning();
+        if (newUser.length > 0) studentId = newUser[0].id;
+      }
+    } catch (drizzleError) {
+      console.error('Drizzle user check failed, falling back to Supabase:', drizzleError);
+      
+      const { data: dbUser, error: fetchError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerkId', user.id)
+        .maybeSingle();
+
+      if (dbUser && !fetchError) {
+        studentId = dbUser.id;
+      } else {
+        // Create user via Supabase
+        const { data: newUser, error: insertError } = await supabase
+          .from('users')
+          .insert({
+            clerkId: user.id,
+            email: user.email,
+            fullName: user.fullName || '',
+            profileImage: user.imageUrl || '',
+            role: 'STUDENT',
+          })
+          .select('id')
+          .single();
+        if (newUser && !insertError) studentId = newUser.id;
       }
     }
 
-    const studentId = dbUser[0]?.id || (await db
-      .select()
-      .from(Users)
-      .where(eq(Users.clerkId, user.id))
-      .limit(1))[0].id;
+    if (!studentId) {
+      return { success: false, error: 'User not found or could not be created' };
+    }
 
     // Calculate weeks based on duration (assuming 10 hours per week)
     const totalHours = parseInt(formData.duration);
@@ -109,29 +136,53 @@ Rules:
 
     console.log('Learning plan parsed successfully');
 
-    // Generate a unique plan ID
-    const planId = uuidv4();
-
     // Prepare topics array for storage
     const topicsArray = formData.wantedTopics
       ? formData.wantedTopics.split(',').map(t => t.trim())
       : [];
 
-    // Save to database
-    const savedPlan = await db.insert(StudentLearningPlans).values({
-      studentId: studentId,
-      planTitle: learningPlan.planTitle || `${formData.domain} Learning Plan`,
-      domain: formData.domain,
-      duration: parseInt(formData.duration),
-      topics: topicsArray,
-      planOutput: learningPlan,
-    }).returning();
+    // 2. Save Plan to database
+    let savedId = null;
+
+    try {
+      // Drizzle Insert
+      const savedPlan = await db.insert(StudentLearningPlans).values({
+        studentId: studentId,
+        planTitle: learningPlan.planTitle || `${formData.domain} Learning Plan`,
+        domain: formData.domain,
+        duration: parseInt(formData.duration),
+        topics: topicsArray,
+        planOutput: learningPlan,
+      }).returning({ id: StudentLearningPlans.id });
+      if (savedPlan.length > 0) savedId = savedPlan[0].id;
+    } catch (drizzleError) {
+      console.error('Drizzle save plan failed, falling back to Supabase:', drizzleError);
+      
+      const { data, error } = await supabase
+        .from('studentLearningPlans')
+        .insert({
+          studentId: studentId,
+          planTitle: learningPlan.planTitle || `${formData.domain} Learning Plan`,
+          domain: formData.domain,
+          duration: parseInt(formData.duration),
+          topics: topicsArray,
+          planOutput: learningPlan,
+        })
+        .select('id')
+        .single();
+      
+      if (data && !error) savedId = data.id;
+    }
+
+    if (!savedId) {
+      return { success: false, error: 'Failed to save learning plan' };
+    }
 
     console.log('Learning plan saved to database');
 
     return {
       success: true,
-      planId: savedPlan[0].id,
+      planId: savedId,
       plan: learningPlan
     };
   } catch (error: unknown) {

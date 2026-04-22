@@ -1,22 +1,38 @@
 import Groq from "groq-sdk";
 
-// Client-side Groq instance (for browser use)
-const groq = new Groq({
-    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-    dangerouslyAllowBrowser: true
-});
+let groq: Groq | null = null;
+let groqServer: Groq | null = null;
 
-// Server-side Groq instance (for server actions)
-const groqServer = new Groq({
-    apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-});
+const getGroqClient = () => {
+    if (!groq) {
+        const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+        if (!apiKey) console.warn('NEXT_PUBLIC_GROQ_API_KEY is missing');
+        groq = new Groq({
+            apiKey: apiKey || 'dummy-key-for-build',
+            dangerouslyAllowBrowser: true
+        });
+    }
+    return groq;
+};
+
+const getGroqServerClient = () => {
+    if (!groqServer) {
+        const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+        if (!apiKey) console.warn('NEXT_PUBLIC_GROQ_API_KEY is missing');
+        groqServer = new Groq({
+            apiKey: apiKey || 'dummy-key-for-build',
+        });
+    }
+    return groqServer;
+};
 
 // Example usage (remove or update as needed):
 // export const GenerateCourseLayout = await getGroqChatCompletion("Your prompt here");
 // Print the completion returned by the LLM.
 
 export async function getGroqChatCompletion(prompt: string) {
-    return groq.chat.completions.create({
+    const client = getGroqClient();
+    return client.chat.completions.create({
         messages: [
             {
                 role: "user",
@@ -31,7 +47,8 @@ export async function getGroqChatCompletion(prompt: string) {
 
 // Server-side version for server actions
 export async function getGroqChatCompletionServer(prompt: string) {
-    return groqServer.chat.completions.create({
+    const client = getGroqServerClient();
+    return client.chat.completions.create({
         messages: [
             {
                 role: "user",
@@ -45,7 +62,8 @@ export async function getGroqChatCompletionServer(prompt: string) {
 }
 
 export async function GenerateChapterContent_AI(prompt: string) {
-    return groq.chat.completions.create({
+    const client = getGroqClient();
+    return client.chat.completions.create({
         messages: [
             {
                 role: "user",

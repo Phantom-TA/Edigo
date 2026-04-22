@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import Header from '@/app/dashboard/_components/Header';
@@ -70,22 +70,7 @@ export default function LearningPlanPage() {
   const [showVideos, setShowVideos] = useState<{ [key: string]: boolean }>({});
   const [showResources, setShowResources] = useState<{ [key: string]: boolean }>({});
 
-  useEffect(() => {
-    fetchPlan();
-  }, [planId]);
-
-  useEffect(() => {
-    console.log('State updated:', {
-      topicVideos,
-      topicResources,
-      showVideos,
-      showResources,
-      loadingVideos,
-      loadingResources
-    });
-  }, [topicVideos, topicResources, showVideos, showResources, loadingVideos, loadingResources]);
-
-  const fetchPlan = async () => {
+  const fetchPlan = useCallback(async () => {
     try {
       const response = await fetch(`/api/learning-plans/${planId}`);
       if (response.ok) {
@@ -103,7 +88,11 @@ export default function LearningPlanPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [planId, router]);
+
+  useEffect(() => {
+    fetchPlan();
+  }, [fetchPlan]);
 
   const toggleWeek = (weekNumber: number) => {
     setExpandedWeeks(prev =>

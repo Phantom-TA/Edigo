@@ -1,5 +1,6 @@
 "use client"
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
+export const dynamic = 'force-dynamic'
 import { useParams, useRouter } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
 import Header from '@/app/dashboard/_components/Header'
@@ -41,13 +42,7 @@ const RoadmapPage = () => {
   const [progressPercentage, setProgressPercentage] = useState(0)
   const [activeTab, setActiveTab] = useState<'roadmap' | 'quizzes'>('roadmap')
 
-  useEffect(() => {
-    if (user) {
-      fetchUserRole();
-    }
-  }, [user]);
-
-  const fetchUserRole = async () => {
+  const fetchUserRole = useCallback(async () => {
     try {
       const response = await fetch('/api/user/role');
       if (response.ok) {
@@ -57,7 +52,13 @@ const RoadmapPage = () => {
     } catch (error) {
       console.error('Error fetching user role:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRole();
+    }
+  }, [user, fetchUserRole]);
 
   const handleBackToDashboard = async () => {
     // If role is not yet loaded, fetch it first
@@ -86,28 +87,7 @@ const RoadmapPage = () => {
     }
   };
 
-  useEffect(() => {
-    const fetchCourse = async () => {
-      try {
-        const result = await getCourseById(courseId)
-        if (result && result.length > 0 && result[0].courseOutput) {
-          const parsedData = typeof result[0].courseOutput === 'string'
-            ? JSON.parse(result[0].courseOutput)
-            : result[0].courseOutput
-          setCourseData(parsedData)
-          calculateProgress(parsedData)
-        }
-      } catch (error) {
-        console.error('Error fetching course:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchCourse()
-  }, [courseId])
-
-  const calculateProgress = async (data: CourseData) => {
+  const calculateProgress = useCallback(async (data: CourseData) => {
     if (!user || !data) return
 
     try {
@@ -135,7 +115,28 @@ const RoadmapPage = () => {
     } catch (error) {
       console.error('Error calculating progress:', error)
     }
-  }
+  }, [user, courseId])
+
+  useEffect(() => {
+    const fetchCourse = async () => {
+      try {
+        const result = await getCourseById(courseId)
+        if (result && result.length > 0 && result[0].courseOutput) {
+          const parsedData = typeof result[0].courseOutput === 'string'
+            ? JSON.parse(result[0].courseOutput)
+            : result[0].courseOutput
+          setCourseData(parsedData)
+          calculateProgress(parsedData)
+        }
+      } catch (error) {
+        console.error('Error fetching course:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCourse()
+  }, [courseId, calculateProgress])
 
   const handleProgressChange = () => {
     if (courseData) {

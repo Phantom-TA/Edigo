@@ -127,7 +127,7 @@ const AiChatbot = () => {
           {messages.length === 0 && (
             <div className="flex items-center justify-center h-full text-gray-400">
               <div className="text-center">
-                <p className="text-lg mb-2">👋 Hello! I'm your AI assistant</p>
+                <p className="text-lg mb-2">👋 Hello! I&apos;m your AI assistant</p>
                 <p className="text-sm">Start a conversation by typing a message below</p>
               </div>
             </div>

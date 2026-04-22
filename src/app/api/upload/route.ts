@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Use environment variables instead of hardcoded values
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let supabase: any = null;
 
-if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase environment variables');
-}
+const getSupabase = () => {
+    if (!supabase) {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!supabaseUrl || !supabaseKey) {
+            console.warn('Missing Supabase environment variables during build');
+            return null;
+        }
+        supabase = createClient(supabaseUrl, supabaseKey);
+    }
+    return supabase;
+};
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file');
@@ -26,8 +33,13 @@ export async function POST(req: NextRequest) {
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `uploads/${fileName}`;
 
+    const supabaseClient = getSupabase();
+    if (!supabaseClient) {
+        return NextResponse.json({ error: 'Supabase client not initialized' }, { status: 500 });
+    }
+
     // Upload to Supabase Storage
-    const { error } = await supabase.storage
+    const { error } = await supabaseClient.storage
         .from('aicadmeyfilestorage') // <-- replace with your bucket name
         .upload(filePath, file, {
             cacheControl: '3600',
@@ -39,7 +51,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get public URL
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = supabaseClient.storage
         .from('aicadmeyfilestorage')
         .getPublicUrl(filePath);
     //console.log('Public URL Data:', publicUrlData);

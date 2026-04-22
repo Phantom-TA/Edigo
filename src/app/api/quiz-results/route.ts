@@ -4,6 +4,8 @@ import { QuizResults, Users } from '@/app/_configs/Schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { currentUser } from '@clerk/nextjs/server';
 
+export const dynamic = 'force-dynamic';
+
 // GET - Retrieve quiz results for a student in a course
 export async function GET(request: NextRequest) {
   try {

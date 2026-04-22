@@ -1,6 +1,4 @@
-import { db } from '@/app/_configs/db';
-import { CourseEnrollments, Users } from '@/app/_configs/Schema';
-import { eq, and } from 'drizzle-orm';
+import { supabase } from '@/app/_configs/db';
 
 /**
  * Enroll a student in a course
@@ -8,46 +6,58 @@ import { eq, and } from 'drizzle-orm';
  */
 export async function enrollStudent(clerkId: string, courseId: string) {
   try {
-    // Get user's database ID
-    const user = await db
-      .select({ id: Users.id })
-      .from(Users)
-      .where(eq(Users.clerkId, clerkId))
-      .limit(1);
+    // Get user's database ID using Supabase HTTP client
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerkId', clerkId)
+      .maybeSingle();
 
-    if (user.length === 0) {
+    if (userError) {
+      console.error('Error fetching user:', userError);
+      throw new Error('Error fetching user');
+    }
+
+    if (!user) {
       throw new Error('User not found');
     }
 
-    const studentId = user[0].id;
+    const studentId = user.id;
 
     // Check if already enrolled
-    const existingEnrollment = await db
-      .select()
-      .from(CourseEnrollments)
-      .where(
-        and(
-          eq(CourseEnrollments.studentId, studentId),
-          eq(CourseEnrollments.courseId, courseId)
-        )
-      )
-      .limit(1);
+    const { data: existingEnrollment, error: fetchError } = await supabase
+      .from('courseEnrollments')
+      .select('*')
+      .eq('studentId', studentId)
+      .eq('courseId', courseId)
+      .maybeSingle();
 
-    if (existingEnrollment.length > 0) {
+    if (fetchError) {
+      console.error('Error checking enrollment:', fetchError);
+      throw new Error('Error checking enrollment');
+    }
+
+    if (existingEnrollment) {
       return null; // Already enrolled
     }
 
     // Create enrollment
-    const enrollment = await db
-      .insert(CourseEnrollments)
-      .values({
+    const { data: enrollment, error: insertError } = await supabase
+      .from('courseEnrollments')
+      .insert({
         studentId,
         courseId,
         progress: {},
       })
-      .returning();
+      .select()
+      .single();
 
-    return enrollment[0];
+    if (insertError) {
+      console.error('Error creating enrollment:', insertError);
+      throw insertError;
+    }
+
+    return enrollment;
   } catch (error) {
     console.error('Error enrolling student:', error);
     throw error;
@@ -59,28 +69,26 @@ export async function enrollStudent(clerkId: string, courseId: string) {
  */
 export async function isStudentEnrolled(clerkId: string, courseId: string): Promise<boolean> {
   try {
-    const user = await db
-      .select({ id: Users.id })
-      .from(Users)
-      .where(eq(Users.clerkId, clerkId))
-      .limit(1);
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerkId', clerkId)
+      .maybeSingle();
 
-    if (user.length === 0) {
+    if (userError || !user) {
       return false;
     }
 
-    const enrollment = await db
-      .select()
-      .from(CourseEnrollments)
-      .where(
-        and(
-          eq(CourseEnrollments.studentId, user[0].id),
-          eq(CourseEnrollments.courseId, courseId)
-        )
-      )
-      .limit(1);
+    const { data: enrollment, error: fetchError } = await supabase
+      .from('courseEnrollments')
+      .select('id')
+      .eq('studentId', user.id)
+      .eq('courseId', courseId)
+      .maybeSingle();
 
-    return enrollment.length > 0;
+    if (fetchError) return false;
+
+    return !!enrollment;
   } catch (error) {
     console.error('Error checking enrollment:', error);
     return false;
@@ -92,22 +100,27 @@ export async function isStudentEnrolled(clerkId: string, courseId: string): Prom
  */
 export async function getEnrolledCourses(clerkId: string) {
   try {
-    const user = await db
-      .select({ id: Users.id })
-      .from(Users)
-      .where(eq(Users.clerkId, clerkId))
-      .limit(1);
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('clerkId', clerkId)
+      .maybeSingle();
 
-    if (user.length === 0) {
+    if (userError || !user) {
       return [];
     }
 
-    const enrollments = await db
-      .select()
-      .from(CourseEnrollments)
-      .where(eq(CourseEnrollments.studentId, user[0].id));
+    const { data: enrollments, error: fetchError } = await supabase
+      .from('courseEnrollments')
+      .select('*')
+      .eq('studentId', user.id);
 
-    return enrollments;
+    if (fetchError) {
+      console.error('Error getting enrolled courses:', fetchError);
+      return [];
+    }
+
+    return enrollments || [];
   } catch (error) {
     console.error('Error getting enrolled courses:', error);
     return [];
