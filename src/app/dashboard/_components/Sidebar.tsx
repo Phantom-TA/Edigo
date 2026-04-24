@@ -58,6 +58,12 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
             path: '/dashboard/ai-chat'
         },
         {
+            id: 8,
+            name: 'PDF Assistant',
+            icon: <HiFolderOpen />,
+            path: '/dashboard/pdf-chat'
+        },
+        {
             id: 5,
             name: 'Wellness',
             icon: <HiHeart />,
@@ -89,6 +95,12 @@ const Sidebar = ({ onNavigate }: SidebarProps) => {
             name: 'AI Chat',
             icon: <HiDocumentText />,
             path: '/dashboard/ai-chat'
+        },
+        {
+            id: 8,
+            name: 'PDF Assistant',
+            icon: <HiFolderOpen />,
+            path: '/dashboard/pdf-chat'
         },
         {
             id: 5,

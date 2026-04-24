@@ -1,7 +1,7 @@
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3002;
 
 // List of allowed origins for CORS
 const allowedOrigins = [

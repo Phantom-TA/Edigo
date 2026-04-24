@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Groq from 'groq-sdk';
+import { createRequire } from 'module';
+export const config = {
+  api: {
+    bodyParser: false, // Disable the default body parser to handle large files
+  },
+};
+export const maxDuration = 60; // Increase timeout to 60 seconds
 
 let groq: Groq | null = null;
 
@@ -20,7 +27,13 @@ const pdfContents = new Map<string, string>();
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
+    let formData;
+    try {
+      formData = await req.formData();
+    } catch (e) {
+      console.error("FormData Parsing Error:", e);
+      return NextResponse.json({ error: 'Invalid form data. Please try again.' }, { status: 400 });
+    }
     const action = formData.get('action') as string;
     const sessionId = formData.get('sessionId') as string;
 
@@ -37,50 +50,48 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        // Dynamically import pdfjs-dist
-        const pdfjsLib = await import('pdfjs-dist');
+        const require = createRequire(import.meta.url);
+        const { PdfReader } = require('pdfreader');
         
-        // Convert file to buffer
         const bytes = await file.arrayBuffer();
-        const uint8Array = new Uint8Array(bytes);
+        const buffer = Buffer.from(bytes);
 
-        // Load PDF document
-        const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-        const pdfDocument = await loadingTask.promise;
-        
-        let pdfText = '';
-        const numPages = pdfDocument.numPages;
+        // Parse PDF using a Promise wrapper for PdfReader
+        const extractText = () => {
+          return new Promise<string>((resolve, reject) => {
+            let text = '';
+            new PdfReader({}).parseBuffer(buffer, (err: any, item: any) => {
+              if (err) reject(err);
+              else if (!item) resolve(text);
+              else if (item.text) text += item.text + ' ';
+            });
+          });
+        };
 
-        // Extract text from all pages
-        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-          const page = await pdfDocument.getPage(pageNum);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(' ');
-          pdfText += pageText + '\n';
+        const pdfText = await extractText();
+
+        if (!pdfText || !pdfText.trim()) {
+           throw new Error("Could not extract any text from the PDF. It might be an image-only scan.");
         }
 
         // Store PDF content for this session
         pdfContents.set(sessionId, pdfText);
         
-        // Initialize chat session with system message
         chatSessions.set(sessionId, [
           {
             role: 'system',
-            content: `You are a helpful AI assistant. You have access to the following PDF document content. Use this information to answer questions accurately and helpfully:\n\n${pdfText.substring(0, 50000)}` // Limit to avoid token limits
+            content: `You are a helpful AI assistant. You have access to the following PDF document content. Use this information to answer questions accurately and helpfully:\n\n${pdfText.substring(0, 50000)}` 
           }
         ]);
 
         return NextResponse.json({ 
           success: true, 
-          message: 'PDF uploaded successfully',
-          pages: numPages 
+          message: 'PDF uploaded successfully'
         });
       } catch (error: any) {
-        console.error('PDF parsing error:', error);
+        console.error('Final PDF Error:', error.message);
         return NextResponse.json({ 
-          error: 'Failed to parse PDF. Please ensure the file is a valid PDF document.' 
+          error: `PDF Error: ${error.message || 'Failed to read document'}` 
         }, { status: 400 });
       }
     }
