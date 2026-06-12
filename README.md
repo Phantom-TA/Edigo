@@ -38,7 +38,6 @@ graph TD
     NextServer -->|Structured JSON Prompt| Groq["Groq SDK (Llama 3.3 70B)"]
     NextServer -->|Resource Search| YouTube["YouTube Data API v3"]
     NextServer -->|Upload Reference Files| Storage["Supabase Storage"]
-    NextServer -->|Billing Events| Stripe["Stripe Payments Gateway"]
 ```
 
 ---
@@ -74,7 +73,6 @@ graph TD
 * **AI Model Orchestration:** Groq SDK (`llama-3.3-70b-versatile`)
 * **Database & ORM:** Drizzle ORM, postgres.js, Supabase PostgreSQL, Supabase Client
 * **Authentication:** Clerk
-* **Payment Processing:** Stripe
 * **Storage:** Supabase Storage
 * **Integrations:** YouTube Data API v3, Pdfreader, Svix (Clerk Webhooks)
 
@@ -85,7 +83,7 @@ graph TD
 ### Prerequisites
 * Node.js v18 or higher
 * PostgreSQL database or a Supabase account
-* Accounts on Groq, Clerk, Stripe, and Google Cloud (YouTube API)
+* Accounts on Groq, Clerk, and Google Cloud (YouTube API)
 
 ### 1. Clone & Install Dependencies
 ```bash
@@ -114,10 +112,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Groq API (Get from console.groq.com)
 NEXT_PUBLIC_GROQ_API_KEY=your_groq_api_key
-
-# Stripe (Get from dashboard.stripe.com)
-STRIPE_SECRET_KEY=your_stripe_secret_key
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_pub_key
 
 # YouTube Data API Key (Optional, get from console.cloud.google.com)
 YOUTUBE_API_KEY=your_youtube_api_key
