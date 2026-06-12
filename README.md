@@ -32,8 +32,8 @@ graph TD
     Client -->|Real-Time Messages| Socket["Socket.IO Server (Port 3002)"]
     Client -->|HTTP API Requests| NextServer["Next.js backend (Port 3000)"]
     
-    NextServer -->|1. Direct Connection (Port 5432)| Drizzle["Drizzle ORM (PostgreSQL)"]
-    NextServer -->|2. Fallback REST Client (Port 443)| Supabase["Supabase HTTP Data API"]
+    NextServer -->|1. Direct Connection - Port 5432| Drizzle["Drizzle ORM (PostgreSQL)"]
+    NextServer -->|2. Fallback REST Client - Port 443| Supabase["Supabase HTTP Data API"]
     
     NextServer -->|Structured JSON Prompt| Groq["Groq SDK (Llama 3.3 70B)"]
     NextServer -->|Resource Search| YouTube["YouTube Data API v3"]
